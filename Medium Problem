@@ -1,0 +1,110 @@
+//employee_db
+CREATE DATABASE employee_db;
+
+USE employee_db;
+
+CREATE TABLE employee (
+    id INT PRIMARY KEY,
+    name VARCHAR(100),
+    position VARCHAR(100)
+);
+
+INSERT INTO employee VALUES (1, 'Alice', 'Manager'), (2, 'Bob', 'Developer');
+//index.html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Employee Search</title>
+</head>
+<body>
+    <h2>Search Employee by ID</h2>
+    <form action="employee" method="get">
+        Enter ID: <input type="text" name="id">
+        <input type="submit" value="Search">
+    </form>
+    <br>
+    <h2>All Employees</h2>
+    <form action="employee" method="get">
+        <input type="hidden" name="all" value="true">
+        <input type="submit" value="Show All Employees">
+    </form>
+</body>
+</html>
+//EmployeeServlet.java
+import java.io.*;
+import java.sql.*;
+import jakarta.servlet.*;
+import jakarta.servlet.http.*;
+
+public class EmployeeServlet extends HttpServlet {
+
+    private Connection getConnection() throws SQLException {
+        String url = "jdbc:mysql://localhost:3306/employee_db";
+        String username = "root";
+        String password = "your_password"; // update this
+        return DriverManager.getConnection(url, username, password);
+    }
+
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+        throws ServletException, IOException {
+
+        response.setContentType("text/html");
+        PrintWriter out = response.getWriter();
+
+        String idParam = request.getParameter("id");
+        String showAll = request.getParameter("all");
+
+        try (Connection con = getConnection()) {
+
+            if (showAll != null) {
+                PreparedStatement ps = con.prepareStatement("SELECT * FROM employee");
+                ResultSet rs = ps.executeQuery();
+
+                out.println("<h2>All Employees</h2><ul>");
+                while (rs.next()) {
+                    out.println("<li>" + rs.getInt("id") + " - " + rs.getString("name") + " (" + rs.getString("position") + ")</li>");
+                }
+                out.println("</ul>");
+
+            } else if (idParam != null && !idParam.isEmpty()) {
+                int id = Integer.parseInt(idParam);
+                PreparedStatement ps = con.prepareStatement("SELECT * FROM employee WHERE id = ?");
+                ps.setInt(1, id);
+                ResultSet rs = ps.executeQuery();
+
+                if (rs.next()) {
+                    out.println("<h2>Employee Found</h2>");
+                    out.println("<p>ID: " + rs.getInt("id") + "</p>");
+                    out.println("<p>Name: " + rs.getString("name") + "</p>");
+                    out.println("<p>Position: " + rs.getString("position") + "</p>");
+                } else {
+                    out.println("<h2>No employee found with ID: " + id + "</h2>");
+                }
+            } else {
+                out.println("<h2>Please enter a valid ID</h2>");
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            out.println("<h3>Error: " + e.getMessage() + "</h3>");
+        }
+    }
+}
+//web.xml
+<web-app xmlns="http://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://jakarta.ee/xml/ns/jakartaee
+         http://jakarta.ee/xml/ns/jakartaee/web-app_5_0.xsd"
+         version="5.0">
+
+    <servlet>
+        <servlet-name>EmployeeServlet</servlet-name>
+        <servlet-class>EmployeeServlet</servlet-class>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>EmployeeServlet</servlet-name>
+        <url-pattern>/employee</url-pattern>
+    </servlet-mapping>
+
+</web-app>
